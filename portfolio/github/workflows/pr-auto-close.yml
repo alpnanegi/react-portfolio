@@ -18,8 +18,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+
         run: |
-          echo "Checking open pull requests in $REPO..."
+          echo "Checking open PRs in $REPO..."
 
           NOW=$(date -u +%s)
 
@@ -31,8 +32,7 @@ jobs:
             > prs.json
 
           echo ""
-          echo "Execution Report"
-          echo "================"
+          echo "===== PR EXECUTION REPORT ====="
 
           jq -c '.[]' prs.json | while read -r PR; do
 
@@ -41,15 +41,14 @@ jobs:
             CREATED_AT=$(echo "$PR" | jq -r '.createdAt')
 
             CREATED_SECONDS=$(date -d "$CREATED_AT" +%s)
-
             AGE_SECONDS=$((NOW - CREATED_SECONDS))
             AGE_HOURS=$((AGE_SECONDS / 3600))
 
             echo ""
-            echo "PR #$PR_NUMBER"
+            echo "PR Number : #$PR_NUMBER"
             echo "Repository: $REPO"
-            echo "Author: $PR_AUTHOR"
-            echo "Open for: $AGE_HOURS hour(s)"
+            echo "Author    : $PR_AUTHOR"
+            echo "Open For  : $AGE_HOURS hour(s)"
 
             if [ "$AGE_SECONDS" -gt 3600 ]; then
 

@@ -1,1 +1,72 @@
+name: PR Auto Close
 
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auto-close-prs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check and close old PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+
+        run: |
+          echo "Checking open PRs in $REPO..."
+
+          NOW=$(date -u +%s)
+
+          gh pr list \
+            --repo "$REPO" \
+            --state open \
+            --limit 100 \
+            --json number,title,author,createdAt \
+            > prs.json
+
+          echo ""
+          echo "===== PR EXECUTION REPORT ====="
+
+          jq -c '.[]' prs.json | while read -r PR; do
+
+            PR_NUMBER=$(echo "$PR" | jq -r '.number')
+            PR_AUTHOR=$(echo "$PR" | jq -r '.author.login')
+            CREATED_AT=$(echo "$PR" | jq -r '.createdAt')
+
+            CREATED_SECONDS=$(date -d "$CREATED_AT" +%s)
+            AGE_SECONDS=$((NOW - CREATED_SECONDS))
+            AGE_HOURS=$((AGE_SECONDS / 3600))
+
+            echo ""
+            echo "PR Number : #$PR_NUMBER"
+            echo "Repository: $REPO"
+            echo "Author    : $PR_AUTHOR"
+            echo "Open For  : $AGE_HOURS hour(s)"
+
+            if [ "$AGE_SECONDS" -gt 3600 ]; then
+
+              echo "Action: Closing PR #$PR_NUMBER"
+
+              gh pr comment "$PR_NUMBER" \
+                --repo "$REPO" \
+                --body "Closed automatically because the PR has been open for >1h with no activity."
+
+              gh pr close "$PR_NUMBER" \
+                --repo "$REPO"
+
+              echo "Result: CLOSED"
+
+            else
+
+              echo "Result: LEFT OPEN"
+
+            fi
+
+          done
